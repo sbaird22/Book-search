@@ -3,61 +3,58 @@ import path from 'node:path';
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import cors from 'cors';
-import bodyParser from 'body-parser';
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+import db from './config/connection';
+import typeDefs from './schemas/typeDefs'; // GraphQL schema
+import { resolvers } from './schemas/resolvers'; // GraphQL resolvers
+import jwt from 'jsonwebtoken';
 
-// Import GraphQL schema and resolvers
-import { typeDefs } from './schemas/typeDefs'; // To be created
-import { resolvers } from './schemas/resolvers'; // To be created
-
-// Load environment variables
-dotenv.config();
-
-// Initialize Express
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware for parsing requests
+// Middleware for parsing request bodies
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cors());
+
+// JWT-based authentication
+const getUserFromToken = (token: string) => {
+  try {
+    const secret = process.env.JWT_SECRET_KEY || 'defaultsecret';
+    return jwt.verify(token, secret);
+  } catch {
+    return null;
+  }
+};
+
+// Apollo Server setup
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+});
+
+await server.start();
+
+app.use(
+  '/graphql',
+  expressMiddleware(server, {
+    context: async ({ req }) => {
+      const token = req.headers.authorization?.split(' ')[1] || '';
+      const user = getUserFromToken(token);
+      return { user };
+    },
+  })
+);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../client/build')));
+  app.use(express.static(path.join(__dirname, '../client/build')));
 }
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || '', {
-
+app.use((_req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
-mongoose.connection.once('open', () => {
-    console.log('✅ Connected to MongoDB');
+// Connect to the database and start the server
+db.once('open', () => {
+  app.listen(PORT, () => console.log(`🌍 Now listening on localhost:${PORT}`));
 });
-
-// Initialize Apollo Server
-const server = new ApolloServer({
-    typeDefs,
-    resolvers,
-});
-
-(async () => {
-    await server.start();
-    app.use(
-    '/graphql',
-    cors<cors.CorsRequest>(),
-    bodyParser.json(),
-    expressMiddleware(server, {
-        context: async ({ req }) => {
-        const token = req.headers.authorization || '';
-        return { token }; // Pass the token to the resolvers
-        },
-        })
-    );
-
-  // Start the server
-app.listen(PORT, () => {
-    console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
-    });
-})();

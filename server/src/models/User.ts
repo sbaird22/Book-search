@@ -1,84 +1,68 @@
-import mongoose, { Schema, Document } from 'mongoose';
-import * as bcrypt from 'bcrypt';
+import { Schema, model, type Document } from 'mongoose';
+import bcrypt from 'bcrypt';
 
-// Define the User interface for TypeScript
-export interface IUser extends Document {
-    username: string;
-    email: string;
-    password: string;
-    bookCount: number;
-    savedBooks: Array<{
-    bookId: string;
-    authors: string[];
-    description: string;
-    title: string;
-    image: string;
-    link: string;
-    }>;
-    isCorrectPassword: (password: string) => Promise<boolean>;
+// import schema from Book.js
+import bookSchema from './Book.js';
+import type { BookDocument } from './Book.js';
+
+export interface UserDocument extends Document {
+  id: string;
+  username: string;
+  email: string;
+  password: string;
+  savedBooks: BookDocument[];
+  isCorrectPassword(password: string): Promise<boolean>;
+  bookCount: number;
 }
 
-// Define the schema
-const userSchema = new Schema<IUser>({
+const userSchema = new Schema<UserDocument>(
+  {
     username: {
-    type: String,
-    required: true,
-    unique: true,
+      type: String,
+      required: true,
+      unique: true,
     },
     email: {
-    type: String,
-    required: true,
-    unique: true,
+      type: String,
+      required: true,
+      unique: true,
+      match: [/.+@.+\..+/, 'Must use a valid email address'],
     },
     password: {
-    type: String,
-    required: true,
+      type: String,
+      required: true,
     },
-    bookCount: {
-    type: Number,
-    default: 0,
+    // set savedBooks to be an array of data that adheres to the bookSchema
+    savedBooks: [bookSchema],
+  },
+  // set this to use virtual below
+  {
+    toJSON: {
+      virtuals: true,
     },
-    savedBooks: [
-        {
-        bookId: {
-        type: String,
-        required: true,
-        },
-        authors: [
-        {
-            type: String,
-        },
-        ],
-        description: {
-        type: String,
-        },
-        title: {
-        type: String,
-        required: true,
-        },
-        image: {
-        type: String,
-        },
-        link: {
-        type: String,
-        },
-        },
-    ],
+  }
+);
+
+// hash user password
+userSchema.pre('save', async function (next) {
+  if (this.isNew || this.isModified('password')) {
+    const saltRounds = 10;
+    this.password = await bcrypt.hash(this.password, saltRounds);
+  }
+
+  next();
 });
 
-// Hash the password before saving the user
-userSchema.pre<IUser>('save', async function (next) {
-    if (this.isModified('password')) {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    }
-    next();
-});
-
-// Compare the provided password with the hashed password
+// custom method to compare and validate password for logging in
 userSchema.methods.isCorrectPassword = async function (password: string) {
-    return bcrypt.compare(password, this.password);
+  return await bcrypt.compare(password, this.password);
 };
 
-// Export the model
-export const User = mongoose.model<IUser>('User', userSchema);
+// when we query a user, we'll also get another field called `bookCount` with the number of saved books we have
+userSchema.virtual('bookCount').get(function () {
+  return this.savedBooks.length;
+});
+
+const User = model<UserDocument>('User', userSchema);
+
+export default User;
