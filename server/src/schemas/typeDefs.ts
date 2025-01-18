@@ -1,6 +1,15 @@
 import { gql } from 'graphql-tag';
 
 const typeDefs = gql`
+  type Book {
+    bookId: String!
+    title: String!
+    authors: [String!]
+    description: String
+    image: String
+    link: String
+  }
+
   type User {
     _id: ID!
     username: String!
@@ -9,25 +18,11 @@ const typeDefs = gql`
     bookCount: Int
   }
 
-  type Book {
-    bookId: String!
-    title: String!
-    authors: [String]
-    description: String!
-    image: String
-    link: String
-  }
-
-  type Auth {
-    token: String!
-    user: User
-  }
-
   input BookInput {
     bookId: String!
     title: String!
-    authors: [String]
-    description: String!
+    authors: [String!]
+    description: String
     image: String
     link: String
   }
@@ -42,7 +37,11 @@ const typeDefs = gql`
     saveBook(bookData: BookInput!): User
     removeBook(bookId: String!): User
   }
+
+  type Auth {
+    token: String!
+    user: User
+  }
 `;
 
 export default typeDefs;
-
