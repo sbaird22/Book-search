@@ -31,10 +31,20 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const signToken = (username: string, email: string, _id: unknown) => {
-  const payload = { username, email, _id };
-  const secretKey = process.env.JWT_SECRET_KEY || '';
+export const getUserFromToken = (token: string): JwtPayload | null => {
+  if (!token) return null;
+  try {
+      const secretKey = process.env.JWT_SECRET_KEY || '';
+      return jwt.verify(token, secretKey) as JwtPayload;
+  } catch {
+      return null;
+  }
+};
 
+
+export const signToken = (userId: string, email: string, username: string): string => {
+  const payload = { _id: userId, email, username };
+  const secretKey = process.env.JWT_SECRET_KEY || '';
   return jwt.sign(payload, secretKey, { expiresIn: '1h' });
 };
 
