@@ -7,6 +7,11 @@ import { expressMiddleware } from '@apollo/server/express4';
 import typeDefs from './schemas/typeDefs.js';
 import resolvers from './schemas/resolvers.js';
 import { getUserFromToken } from './services/auth.js';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -47,7 +52,10 @@ console.log('GraphQL middleware added...'); // Debug log 5
 // Static assets for production
 if (process.env.NODE_ENV === 'production') {
   console.log('Production mode: Serving static files...'); // Debug log 6
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  app.use(express.static(path.join(__dirname, '../../client/dist')));
+  app.get('*', (_, res) => {
+    res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+});
 }
 
 app.use(routes);
