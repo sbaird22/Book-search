@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { FormEvent } from 'react';
+import { FormEvent } from 'react';
 import {
     Container,
     Col,
